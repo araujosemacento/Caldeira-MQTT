@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -18,6 +19,23 @@ import (
 )
 
 const maxBufferedReadings = 1000
+
+// Códigos de escape ANSI para formatação semântica no terminal.
+const (
+	ansiReset      = "\033[0m"
+	ansiBold       = "\033[1m"
+	ansiGray       = "\033[90m"
+	ansiCyan       = "\033[36m"
+	ansiBoldCyan   = "\033[1;36m"
+	ansiMagenta    = "\033[35m"
+	ansiBoldMag    = "\033[1;35m"
+	ansiYellow     = "\033[33m"
+	ansiBoldYellow = "\033[1;33m"
+	ansiGreen      = "\033[32m"
+	ansiBoldWhite  = "\033[1;97m"
+	ansiBoldRed    = "\033[1;91m"
+	ansiBgRed      = "\033[41;97m"
+)
 
 // readingRecord armazena uma leitura recebida junto ao instante local de chegada.
 type readingRecord struct {
@@ -47,6 +65,25 @@ func NewCATService(brokerURL string, windowSize time.Duration) *CATService {
 	}
 }
 
+// sensorColor retorna as cores ANSI correspondentes à paleta CMY dos sensores.
+func sensorColor(sensorID string) (string, string) {
+	switch sensorID {
+	case "sensor_1", "s1":
+		return ansiCyan, ansiBoldCyan
+	case "sensor_2", "s2":
+		return ansiMagenta, ansiBoldMag
+	case "sensor_3", "s3":
+		return ansiYellow, ansiBoldYellow
+	default:
+		return "", ansiBold
+	}
+}
+
+// timeStamp retorna o horário atual formatado em cinza neutro.
+func timeStamp() string {
+	return fmt.Sprintf("%s%s%s", ansiGray, time.Now().Format("15:04:05"), ansiReset)
+}
+
 // Start conecta ao broker MQTT, registra a inscrição nos sensores e inicia o cálculo periódico.
 func (c *CATService) Start() error {
 	opts := mqtt.NewClientOptions().
@@ -57,10 +94,10 @@ func (c *CATService) Start() error {
 		SetOnConnectHandler(func(client mqtt.Client) {
 			subToken := client.Subscribe(protocol.TopicSensorsWildcard, 1, c.handleMessage)
 			if subToken.Wait() && subToken.Error() != nil {
-				log.Printf("[CAT] Erro ao assinar o tópico %s: %v", protocol.TopicSensorsWildcard, subToken.Error())
+				fmt.Printf("%s %s[CAT]%s Erro ao assinar tópico %s: %v\n", timeStamp(), ansiBoldRed, ansiReset, protocol.TopicSensorsWildcard, subToken.Error())
 				return
 			}
-			log.Printf("[CAT] Inscrito no tópico: %s", protocol.TopicSensorsWildcard)
+			fmt.Printf("%s %s[CAT]%s Inscrito no tópico de sensores: %s%s%s\n", timeStamp(), ansiGray, ansiReset, ansiBoldCyan, protocol.TopicSensorsWildcard, ansiReset)
 		})
 
 	c.client = mqtt.NewClient(opts)
@@ -69,7 +106,7 @@ func (c *CATService) Start() error {
 		return fmt.Errorf("erro ao conectar ao broker MQTT: %w", token.Error())
 	}
 
-	log.Printf("[CAT] Conectado ao broker MQTT em %s (janela: %s)", c.brokerURL, c.windowSize)
+	fmt.Printf("%s %s[CAT]%s Conectado ao broker MQTT em %s (janela de cálculo: %s)\n", timeStamp(), ansiGray, ansiReset, c.brokerURL, c.windowSize)
 
 	go c.runAverageLoop()
 
@@ -80,12 +117,12 @@ func (c *CATService) Start() error {
 func (c *CATService) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 	var reading protocol.TemperatureReading
 	if err := json.Unmarshal(msg.Payload(), &reading); err != nil {
-		log.Printf("[CAT] Erro ao decodificar mensagem JSON: %v", err)
+		fmt.Printf("%s %s[CAT]%s Erro ao decodificar JSON: %v\n", timeStamp(), ansiBoldRed, ansiReset, err)
 		return
 	}
 
 	if err := reading.Validate(); err != nil {
-		log.Printf("[CAT] Leitura descartada (%s): %v", reading.SensorID, err)
+		fmt.Printf("%s %s[CAT]%s Leitura descartada (%s): %v\n", timeStamp(), ansiBoldRed, ansiReset, reading.SensorID, err)
 		return
 	}
 
@@ -101,7 +138,13 @@ func (c *CATService) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 		receivedAt: time.Now(),
 	})
 
-	log.Printf("[CAT] Leitura recebida de [%s]: %.1f °C", reading.SensorID, reading.Temperature)
+	colNorm, colBold := sensorColor(reading.SensorID)
+	fmt.Printf("%s %s[CAT]%s Leitura %s[%s]%s: %s%.1f °C%s\n",
+		timeStamp(),
+		ansiGray, ansiReset,
+		colNorm, reading.SensorID, ansiReset,
+		colBold, reading.Temperature, ansiReset,
+	)
 }
 
 // runAverageLoop aciona o cálculo da média a cada ciclo de 3 segundos.
@@ -143,14 +186,39 @@ func (c *CATService) evaluateAverage() {
 	}
 
 	currentAvg := sum / float64(len(valid))
-	log.Printf("[CAT] Média dos últimos %s (%d leituras): %.2f °C", c.windowSize, len(valid), currentAvg)
+
+	var statusTag string
+	var deltaStr string
+
+	if c.previousAvg != nil {
+		diff := currentAvg - *c.previousAvg
+		deltaStr = fmt.Sprintf(" (Δ %+.2f °C)", diff)
+
+		if math.Abs(diff) >= 5.0 {
+			statusTag = fmt.Sprintf(" %s[SALTO BRUSCO]%s", ansiBoldYellow, ansiReset)
+		} else if currentAvg > 200.0 {
+			statusTag = fmt.Sprintf(" %s[TEMPERATURA ALTA]%s", ansiBoldRed, ansiReset)
+		} else {
+			statusTag = fmt.Sprintf(" %s[ESTÁVEL]%s", ansiGreen, ansiReset)
+		}
+	} else {
+		statusTag = fmt.Sprintf(" %s[INICIAL]%s", ansiGreen, ansiReset)
+	}
+
+	// Linha compacta da média da janela (mantida sob 65 colunas para evitar quebra de linha)
+	fmt.Printf("%s %s[CAT] Média (%d am.): %.2f °C%s%s%s\n",
+		timeStamp(),
+		ansiBoldWhite,
+		len(valid), currentAvg,
+		deltaStr, statusTag, ansiReset,
+	)
 
 	// Regra 1: Temperatura alta (média acima de 200 °C)
 	if currentAvg > 200.0 {
 		c.publishAlarm(protocol.TopicAlarmHighTemp, protocol.AlarmEvent{
 			Type:        "temperatura_alta",
 			Average:     currentAvg,
-			Description: fmt.Sprintf("Média de temperatura crítica acima de 200 °C: %.2f °C", currentAvg),
+			Description: fmt.Sprintf("Média em %.2f °C (acima de 200 °C)", currentAvg),
 			Timestamp:   now.Unix(),
 		})
 	}
@@ -162,7 +230,7 @@ func (c *CATService) evaluateAverage() {
 			c.publishAlarm(protocol.TopicAlarmSuddenChange, protocol.AlarmEvent{
 				Type:        "variacao_repentina",
 				Average:     currentAvg,
-				Description: fmt.Sprintf("Variação repentina de temperatura detectada: %.2f °C (diferença de %.2f °C)", currentAvg, diff),
+				Description: fmt.Sprintf("Salto térmico de %.2f °C", diff),
 				Timestamp:   now.Unix(),
 			})
 		}
@@ -175,17 +243,25 @@ func (c *CATService) evaluateAverage() {
 func (c *CATService) publishAlarm(topic string, event protocol.AlarmEvent) {
 	data, err := json.Marshal(event)
 	if err != nil {
-		log.Printf("[CAT] Erro ao serializar alarme: %v", err)
+		fmt.Printf("%s %s[CAT]%s Erro ao serializar alarme: %v\n", timeStamp(), ansiBoldRed, ansiReset, err)
 		return
 	}
 
 	token := c.client.Publish(topic, 1, false, data)
 	token.Wait()
 	if token.Error() != nil {
-		log.Printf("[CAT] Erro ao publicar alarme no tópico [%s]: %v", topic, token.Error())
+		fmt.Printf("%s %s[CAT]%s Erro ao publicar alarme no tópico [%s]: %v\n", timeStamp(), ansiBoldRed, ansiReset, topic, token.Error())
 		return
 	}
-	log.Printf("[CAT] ALARME PUBLICADO no tópico [%s]: %s", topic, event.Description)
+
+	shortTopic := strings.TrimPrefix(topic, "caldeira/alarmes/")
+	if event.Type == "temperatura_alta" {
+		fmt.Printf("%s %s[CAT] >>> PUBLICADO [%s]: %s%s\n",
+			timeStamp(), ansiBoldRed, shortTopic, event.Description, ansiReset)
+	} else {
+		fmt.Printf("%s %s[CAT] >>> PUBLICADO [%s]: %s%s\n",
+			timeStamp(), ansiBoldYellow, shortTopic, event.Description, ansiReset)
+	}
 }
 
 // Stop encerra a rotina de cálculo e desconecta do broker MQTT.
@@ -213,5 +289,5 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	<-sigChan
 
-	log.Println("[CAT] Encerrando serviço CAT...")
+	fmt.Printf("\n%s %s[CAT]%s Encerrando serviço CAT...\n", timeStamp(), ansiGray, ansiReset)
 }

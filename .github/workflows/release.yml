@@ -114,6 +114,7 @@ jobs:
           cp cmd/sensor/build/bin/caldeira-sensor dist/linux/
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/linux/caldeira-cat ./cmd/cat
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/linux/caldeira-alarms ./cmd/alarms
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/linux/caldeira-inspector ./cmd/inspector
 
       - name: Empacotar binários Linux (.tar.gz)
         run: |
@@ -155,6 +156,7 @@ jobs:
           cp cmd/sensor/build/bin/caldeira-sensor.exe dist/windows/
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/windows/caldeira-cat.exe ./cmd/cat
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/windows/caldeira-alarms.exe ./cmd/alarms
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/windows/caldeira-inspector.exe ./cmd/inspector
 
       - name: Empacotar binários Windows (.zip)
         shell: pwsh
