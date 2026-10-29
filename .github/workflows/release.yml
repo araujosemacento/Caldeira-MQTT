@@ -85,7 +85,7 @@ jobs:
           echo "deve_publicar=true" >> "$GITHUB_OUTPUT"
 
   build-linux:
-    name: Build Binario Linux (amd64)
+    name: Build Binarios Linux (amd64)
     needs: semver
     if: needs.semver.outputs.deve_publicar == 'true'
     runs-on: ubuntu-latest
@@ -107,15 +107,19 @@ jobs:
       - name: Instalar Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Compilar binario para Linux (amd64)
+      - name: Compilar binarios para Linux (amd64)
         run: |
-          wails build
+          mkdir -p dist/linux
+          cd cmd/sensor && wails build && cd ../..
+          cp cmd/sensor/build/bin/caldeira-sensor dist/linux/
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/linux/caldeira-cat ./cmd/cat
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/linux/caldeira-alarms ./cmd/alarms
 
-      - name: Empacotar binario Linux (.tar.gz)
+      - name: Empacotar binarios Linux (.tar.gz)
         run: |
           mkdir -p pacotes
           TAG="${{ needs.semver.outputs.nova_tag }}"
-          tar -czvf "pacotes/caldeira-mqtt-linux-amd64-${TAG}.tar.gz" -C build/bin caldeira-mqtt
+          tar -czvf "pacotes/caldeira-mqtt-linux-amd64-${TAG}.tar.gz" -C dist/linux .
 
       - name: Enviar artefatos Linux
         uses: actions/upload-artifact@v4
@@ -125,7 +129,7 @@ jobs:
           if-no-files-found: error
 
   build-windows:
-    name: Build Binario Windows (amd64)
+    name: Build Binarios Windows (amd64)
     needs: semver
     if: needs.semver.outputs.deve_publicar == 'true'
     runs-on: windows-latest
@@ -143,17 +147,21 @@ jobs:
         shell: bash
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Compilar binario para Windows (amd64)
+      - name: Compilar binarios para Windows (amd64)
         shell: bash
         run: |
-          wails build
+          mkdir -p dist/windows
+          cd cmd/sensor && wails build && cd ../..
+          cp cmd/sensor/build/bin/caldeira-sensor.exe dist/windows/
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/windows/caldeira-cat.exe ./cmd/cat
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/windows/caldeira-alarms.exe ./cmd/alarms
 
-      - name: Empacotar binario Windows (.zip)
+      - name: Empacotar binarios Windows (.zip)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path pacotes | Out-Null
           $Tag = "${{ needs.semver.outputs.nova_tag }}"
-          Compress-Archive -Path "build\bin\caldeira-mqtt.exe" -DestinationPath "pacotes\caldeira-mqtt-windows-amd64-$Tag.zip" -Force
+          Compress-Archive -Path "dist\windows\*" -DestinationPath "pacotes\caldeira-mqtt-windows-amd64-$Tag.zip" -Force
 
       - name: Enviar artefatos Windows
         uses: actions/upload-artifact@v4

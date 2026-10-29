@@ -18,8 +18,10 @@ caldeira-mqtt
 # Go workspace file
 go.work
 
-# Wails build output
-build/bin/
+# Wails and build output
+build/
+cmd/sensor/build/
+dist/
 
 # Temporary and local IDE files
 .DS_Store

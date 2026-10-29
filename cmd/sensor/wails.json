@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "caldeira-mqtt",
-  "outputfilename": "caldeira-mqtt",
+  "name": "caldeira-sensor",
+  "outputfilename": "caldeira-sensor",
   "frontend:dir": "frontend",
   "build:tags": "webkit2_41",
   "author": {
