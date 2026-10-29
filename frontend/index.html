@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulador: Caldeira</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg id="chart" viewBox="0 0 600 300">
+    <!-- Numeros sutis no eixo Y -->
+    <g class="axis-numbers">
+      <text x="44" y="34">210</text>
+      <text x="44" y="74">200</text>
+      <text x="44" y="114">190</text>
+      <text x="44" y="154">180</text>
+      <text x="44" y="194">170</text>
+      <text x="44" y="234">160</text>
+      <text x="44" y="274">150</text>
+    </g>
+
+    <!-- Moldura externa do plano cartesiano -->
+    <rect x="50" y="30" width="530" height="240" class="frame" />
+
+    <!-- Divisoes cartesianas -->
+    <g class="grid">
+      <!-- Linhas horizontais (de 10 em 10 graus de 150 a 210) -->
+      <line x1="50" y1="110" x2="580" y2="110" />
+      <line x1="50" y1="150" x2="580" y2="150" />
+      <line x1="50" y1="190" x2="580" y2="190" />
+      <line x1="50" y1="230" x2="580" y2="230" />
+
+      <!-- Linhas verticais -->
+      <line x1="125" y1="30" x2="125" y2="270" />
+      <line x1="200" y1="30" x2="200" y2="270" />
+      <line x1="275" y1="30" x2="275" y2="270" />
+      <line x1="350" y1="30" x2="350" y2="270" />
+      <line x1="425" y1="30" x2="425" y2="270" />
+    </g>
+
+    <!-- Linha de Alarme Alta (200 C: y = 70) -->
+    <line x1="50" y1="70" x2="580" y2="70" class="line-alarm" />
+
+    <!-- Linha do Tempo Presente -->
+    <line x1="500" y1="30" x2="500" y2="270" class="line-now" />
+
+    <!-- Curvas dos dois sensores -->
+    <path id="path-s1" class="curve-s1" />
+    <path id="path-s2" class="curve-s2" />
+
+    <!-- Knobs interativos -->
+    <circle id="knob-s1" cx="500" cy="150" r="8" class="knob-s1" />
+    <circle id="knob-s2" cx="500" cy="210" r="8" class="knob-s2" />
+  </svg>
+
+  <script src="main.js"></script>
+</body>
+</html>
