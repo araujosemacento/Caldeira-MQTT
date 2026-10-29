@@ -22,22 +22,26 @@ const (
 
 // App gerencia o estado dos sensores e a comunicação entre o frontend Wails e o broker MQTT.
 type App struct {
-	ctx        context.Context
-	mu         sync.RWMutex
-	sensor1    float64
-	sensor2    float64
-	ticker     *time.Ticker
-	stopChan   chan struct{}
-	stopOnce   sync.Once
-	mqttClient mqtt.Client
+	ctx         context.Context
+	mu          sync.RWMutex
+	sensorCount int
+	sensor1     float64
+	sensor2     float64
+	sensor3     float64
+	ticker      *time.Ticker
+	stopChan    chan struct{}
+	stopOnce    sync.Once
+	mqttClient  mqtt.Client
 }
 
-// NewApp cria uma nova instância da aplicação com temperaturas iniciais padrão.
+// NewApp cria uma nova instância da aplicação com dois sensores ativos por padrão.
 func NewApp() *App {
 	return &App{
-		sensor1:  180.0,
-		sensor2:  165.0,
-		stopChan: make(chan struct{}),
+		sensorCount: 2,
+		sensor1:     180.0,
+		sensor2:     165.0,
+		sensor3:     175.0,
+		stopChan:    make(chan struct{}),
 	}
 }
 
@@ -90,6 +94,20 @@ func (a *App) conectarMQTT(brokerURL string) {
 	}()
 }
 
+// SetSensorCount ajusta a quantidade de sensores ativos (entre 1 e 3).
+func (a *App) SetSensorCount(count int) {
+	if count < 1 {
+		count = 1
+	} else if count > 3 {
+		count = 3
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.sensorCount = count
+	log.Printf("[SENSOR] Quantidade de sensores ativos alterada para: %d", count)
+}
+
 // SetTemperature atualiza a temperatura instantânea do sensor selecionado pelo usuário.
 func (a *App) SetTemperature(sensorID string, value float64) {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
@@ -106,17 +124,21 @@ func (a *App) SetTemperature(sensorID string, value float64) {
 		a.sensor1 = clamped
 	case "s2":
 		a.sensor2 = clamped
+	case "s3":
+		a.sensor3 = clamped
 	}
 }
 
-// GetTemperatures retorna os valores atuais de temperatura dos sensores.
-func (a *App) GetTemperatures() map[string]float64 {
+// GetTemperatures retorna os valores atuais de temperatura dos sensores e a quantidade ativa.
+func (a *App) GetTemperatures() map[string]interface{} {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return map[string]float64{
-		"s1": a.sensor1,
-		"s2": a.sensor2,
+	return map[string]interface{}{
+		"count": a.sensorCount,
+		"s1":    a.sensor1,
+		"s2":    a.sensor2,
+		"s3":    a.sensor3,
 	}
 }
 
@@ -146,7 +168,7 @@ func (a *App) publicarLeitura(sensorID string, temp float64, now int64) {
 	client.Publish(topic, 0, false, data)
 }
 
-// iniciarCiclo executa o loop periódico de 3 segundos para envio MQTT e atualização do gráfico. Pra estar em conformidade com os 60 segundos requeridos basta mudar o valor do ticker.
+// iniciarCiclo executa o loop periódico de 3 segundos para envio MQTT e atualização do gráfico.
 func (a *App) iniciarCiclo() {
 	a.ticker = time.NewTicker(3 * time.Second)
 
@@ -157,18 +179,29 @@ func (a *App) iniciarCiclo() {
 				return
 			case <-a.ticker.C:
 				a.mu.RLock()
+				count := a.sensorCount
 				t1 := a.sensor1
 				t2 := a.sensor2
+				t3 := a.sensor3
 				a.mu.RUnlock()
 
 				now := time.Now().Unix()
 
-				a.publicarLeitura("sensor_1", t1, now)
-				a.publicarLeitura("sensor_2", t2, now)
+				if count >= 1 {
+					a.publicarLeitura("sensor_1", t1, now)
+				}
+				if count >= 2 {
+					a.publicarLeitura("sensor_2", t2, now)
+				}
+				if count >= 3 {
+					a.publicarLeitura("sensor_3", t3, now)
+				}
 
 				runtime.EventsEmit(a.ctx, "cycle_tick", map[string]interface{}{
+					"count":     count,
 					"s1":        t1,
 					"s2":        t2,
+					"s3":        t3,
 					"timestamp": now,
 				})
 			}

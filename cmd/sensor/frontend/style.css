@@ -7,11 +7,58 @@
 
 body {
   background: #111;
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  overflow: hidden;
+}
+
+.simulator-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  gap: 6px;
+}
+
+.sensor-btn {
+  width: calc(100% * 530 / 600);
+  margin-left: calc(100% * 50 / 600);
+  margin-right: calc(100% * 20 / 600);
+  height: 28px;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 3px;
+  color: #e4e4e7;
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, opacity 0.15s, color 0.15s;
+}
+
+.sensor-btn:hover:not(:disabled) {
+  background: #27272a;
+  border-color: #71717a;
+  color: #ffffff;
+}
+
+.sensor-btn:active:not(:disabled) {
+  background: #3f3f46;
+}
+
+.sensor-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+  border-color: #27272a;
+  color: #52525b;
+  background: #111113;
 }
 
 #chart {
@@ -49,28 +96,41 @@ body {
   stroke-width: 1.5;
 }
 
+/* Sensor 1: Ciano */
 .curve-s1 {
   fill: none;
-  stroke: #a855f7;
+  stroke: #00e5ff;
   stroke-width: 2.5;
 }
 
+.knob-s1 {
+  fill: #00e5ff;
+}
+
+/* Sensor 2: Magenta */
 .curve-s2 {
   fill: none;
-  stroke: #22c55e;
+  stroke: #f026d3;
   stroke-width: 2.5;
+}
+
+.knob-s2 {
+  fill: #f026d3;
+}
+
+/* Sensor 3: Amarelo */
+.curve-s3 {
+  fill: none;
+  stroke: #ffd600;
+  stroke-width: 2.5;
+}
+
+.knob-s3 {
+  fill: #ffd600;
 }
 
 circle {
   cursor: ns-resize;
   stroke: #fff;
   stroke-width: 2;
-}
-
-.knob-s1 {
-  fill: #a855f7;
-}
-
-.knob-s2 {
-  fill: #22c55e;
 }

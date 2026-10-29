@@ -18,7 +18,7 @@ func main() {
 	err := wails.Run(&options.App{
 		Title:  "Simulador de Sensores: Caldeira",
 		Width:  600,
-		Height: 400,
+		Height: 420,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

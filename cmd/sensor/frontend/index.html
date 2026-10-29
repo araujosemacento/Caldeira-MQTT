@@ -6,51 +6,61 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <svg id="chart" viewBox="0 0 600 300">
-    <!-- Números sutis da escala de temperatura no eixo vertical -->
-    <g class="axis-numbers">
-      <text x="44" y="34">210</text>
-      <text x="44" y="74">200</text>
-      <text x="44" y="114">190</text>
-      <text x="44" y="154">180</text>
-      <text x="44" y="194">170</text>
-      <text x="44" y="234">160</text>
-      <text x="44" y="274">150</text>
-    </g>
+  <div class="simulator-layout">
+    <!-- Botão superior para adicionar sensor -->
+    <button id="btn-add" class="sensor-btn" type="button" aria-label="Adicionar sensor">+</button>
 
-    <!-- Moldura externa do plano cartesiano -->
-    <rect x="50" y="30" width="530" height="240" class="frame" />
+    <svg id="chart" viewBox="0 0 600 300">
+      <!-- Números sutis da escala de temperatura no eixo vertical -->
+      <g class="axis-numbers">
+        <text x="44" y="34">210</text>
+        <text x="44" y="74">200</text>
+        <text x="44" y="114">190</text>
+        <text x="44" y="154">180</text>
+        <text x="44" y="194">170</text>
+        <text x="44" y="234">160</text>
+        <text x="44" y="274">150</text>
+      </g>
 
-    <!-- Divisões cartesianas da grade -->
-    <g class="grid">
-      <!-- Linhas horizontais de 10 em 10 °C (escala de 150 a 210 °C) -->
-      <line x1="50" y1="110" x2="580" y2="110" />
-      <line x1="50" y1="150" x2="580" y2="150" />
-      <line x1="50" y1="190" x2="580" y2="190" />
-      <line x1="50" y1="230" x2="580" y2="230" />
+      <!-- Moldura externa do plano cartesiano -->
+      <rect x="50" y="30" width="530" height="240" class="frame" />
 
-      <!-- Linhas verticais de intervalo temporal -->
-      <line x1="125" y1="30" x2="125" y2="270" />
-      <line x1="200" y1="30" x2="200" y2="270" />
-      <line x1="275" y1="30" x2="275" y2="270" />
-      <line x1="350" y1="30" x2="350" y2="270" />
-      <line x1="425" y1="30" x2="425" y2="270" />
-    </g>
+      <!-- Divisões cartesianas da grade -->
+      <g class="grid">
+        <!-- Linhas horizontais de 10 em 10 °C (escala de 150 a 210 °C) -->
+        <line x1="50" y1="110" x2="580" y2="110" />
+        <line x1="50" y1="150" x2="580" y2="150" />
+        <line x1="50" y1="190" x2="580" y2="190" />
+        <line x1="50" y1="230" x2="580" y2="230" />
 
-    <!-- Linha de limite para alarme de temperatura alta (200 °C: y = 70) -->
-    <line x1="50" y1="70" x2="580" y2="70" class="line-alarm" />
+        <!-- Linhas verticais de intervalo temporal -->
+        <line x1="125" y1="30" x2="125" y2="270" />
+        <line x1="200" y1="30" x2="200" y2="270" />
+        <line x1="275" y1="30" x2="275" y2="270" />
+        <line x1="350" y1="30" x2="350" y2="270" />
+        <line x1="425" y1="30" x2="425" y2="270" />
+      </g>
 
-    <!-- Linha vertical de referência do instante atual -->
-    <line x1="500" y1="30" x2="500" y2="270" class="line-now" />
+      <!-- Linha de limite para alarme de temperatura alta (200 °C: y = 70) -->
+      <line x1="50" y1="70" x2="580" y2="70" class="line-alarm" />
 
-    <!-- Curvas históricas dos dois sensores -->
-    <path id="path-s1" class="curve-s1" />
-    <path id="path-s2" class="curve-s2" />
+      <!-- Linha vertical de referência do instante atual -->
+      <line x1="500" y1="30" x2="500" y2="270" class="line-now" />
 
-    <!-- Controles circulares interativos (knobs) -->
-    <circle id="knob-s1" cx="500" cy="150" r="8" class="knob-s1" />
-    <circle id="knob-s2" cx="500" cy="210" r="8" class="knob-s2" />
-  </svg>
+      <!-- Curvas históricas dos sensores (Ciano, Magenta, Amarelo) -->
+      <path id="path-s1" class="curve-s1" />
+      <path id="path-s2" class="curve-s2" />
+      <path id="path-s3" class="curve-s3" style="display: none;" />
+
+      <!-- Controles circulares interativos (knobs) -->
+      <circle id="knob-s1" cx="500" cy="150" r="8" class="knob-s1" />
+      <circle id="knob-s2" cx="500" cy="210" r="8" class="knob-s2" />
+      <circle id="knob-s3" cx="500" cy="170" r="8" class="knob-s3" style="display: none;" />
+    </svg>
+
+    <!-- Botão inferior para remover sensor -->
+    <button id="btn-remove" class="sensor-btn" type="button" aria-label="Remover sensor">-</button>
+  </div>
 
   <script src="main.js"></script>
 </body>

@@ -6,6 +6,10 @@ export function GetTemperatures() {
   return window['go']['main']['App']['GetTemperatures']();
 }
 
+export function SetSensorCount(arg1) {
+  return window['go']['main']['App']['SetSensorCount'](arg1);
+}
+
 export function SetTemperature(arg1, arg2) {
   return window['go']['main']['App']['SetTemperature'](arg1, arg2);
 }
