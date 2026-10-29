@@ -1,20 +1,19 @@
 package protocol
 
-// Constantes de topicos MQTT utilizados no sistema de monitoramento da caldeira.
+// Tópicos MQTT utilizados na comunicação entre sensores, CAT e Alarms.
 const (
-	// TopicSensorsWildcard eh o topico assinado pelo CAT para receber leituras de qualquer sensor.
+	// TopicSensorsWildcard é assinado pelo serviço CAT para receber leituras de todos os sensores.
 	TopicSensorsWildcard = "caldeira/sensores/temperatura/+"
 
-	// TopicSensorPrefix eh o prefixo base para o topico de envio de cada sensor individual.
+	// TopicSensorPrefix é o prefixo base para publicação individual de cada sensor.
 	TopicSensorPrefix = "caldeira/sensores/temperatura/"
 
-	// TopicAlarmSuddenChange eh o topico em que o CAT publica avisos de variacao repentina (>= 5 graus).
+	// TopicAlarmSuddenChange recebe alertas quando a média varia em 5 °C ou mais entre ciclos.
 	TopicAlarmSuddenChange = "caldeira/alarmes/variacao_repentina"
 
-	// TopicAlarmHighTemp eh o topico em que o CAT publica avisos de temperatura alta (> 200 graus).
+	// TopicAlarmHighTemp recebe alertas quando a média ultrapassa 200 °C.
 	TopicAlarmHighTemp = "caldeira/alarmes/temperatura_alta"
 
-	// TopicAlarmsWildcard eh o topico assinado pelo servico Alarms para ouvir todos os alarmes.
+	// TopicAlarmsWildcard é assinado pelo serviço Alarms para monitorar todos os alertas.
 	TopicAlarmsWildcard = "caldeira/alarmes/#"
 )
-

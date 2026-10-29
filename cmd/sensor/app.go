@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"sync"
 	"time"
 
@@ -14,7 +15,12 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App gerencia o estado da aplicacao e a comunicacao entre backend e frontend.
+const (
+	minTempScale = 150.0
+	maxTempScale = 210.0
+)
+
+// App gerencia o estado dos sensores e a comunicação entre o frontend Wails e o broker MQTT.
 type App struct {
 	ctx        context.Context
 	mu         sync.RWMutex
@@ -22,10 +28,11 @@ type App struct {
 	sensor2    float64
 	ticker     *time.Ticker
 	stopChan   chan struct{}
+	stopOnce   sync.Once
 	mqttClient mqtt.Client
 }
 
-// NewApp cria uma nova instancia do App.
+// NewApp cria uma nova instância da aplicação com temperaturas iniciais padrão.
 func NewApp() *App {
 	return &App{
 		sensor1:  180.0,
@@ -34,60 +41,75 @@ func NewApp() *App {
 	}
 }
 
-// startup eh invocado na inicializacao do Wails.
+// startup é chamado pelo Wails na abertura da janela.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.conectarMQTT("tcp://localhost:1883")
 	a.iniciarCiclo()
 }
 
-// shutdown eh invocado ao fechar a aplicacao.
+// shutdown é chamado pelo Wails ao encerrar a janela.
 func (a *App) shutdown(ctx context.Context) {
-	if a.ticker != nil {
-		a.ticker.Stop()
-	}
-	close(a.stopChan)
+	a.stopOnce.Do(func() {
+		if a.ticker != nil {
+			a.ticker.Stop()
+		}
+		close(a.stopChan)
+	})
 
-	if a.mqttClient != nil && a.mqttClient.IsConnected() {
-		a.mqttClient.Disconnect(250)
+	a.mu.RLock()
+	client := a.mqttClient
+	a.mu.RUnlock()
+
+	if client != nil && client.IsConnected() {
+		client.Disconnect(250)
 	}
 }
 
-// conectarMQTT tenta conectar ao broker local de forma assincrona.
+// conectarMQTT inicia a conexão com o broker MQTT de forma assíncrona.
 func (a *App) conectarMQTT(brokerURL string) {
 	opts := mqtt.NewClientOptions().
 		AddBroker(brokerURL).
-		SetClientID("sensor-gui-" + fmt.Sprintf("%d", time.Now().Unix())).
+		SetClientID(fmt.Sprintf("sensor-gui-%d", time.Now().UnixNano())).
 		SetAutoReconnect(true).
 		SetKeepAlive(60 * time.Second)
 
 	client := mqtt.NewClient(opts)
-	token := client.Connect()
 
+	a.mu.Lock()
+	a.mqttClient = client
+	a.mu.Unlock()
+
+	token := client.Connect()
 	go func() {
 		if token.Wait() && token.Error() != nil {
-			log.Printf("[SENSOR] Aviso: Nao foi possivel conectar ao broker MQTT (%s): %v", brokerURL, token.Error())
+			log.Printf("[SENSOR] Aviso: Não foi possível conectar ao broker MQTT (%s): %v", brokerURL, token.Error())
 			return
 		}
-		a.mqttClient = client
 		log.Printf("[SENSOR] Conectado ao broker MQTT em %s", brokerURL)
 	}()
 }
 
-// SetTemperature atualiza o valor instantaneo definido pelo knob do sensor.
+// SetTemperature atualiza a temperatura instantânea do sensor selecionado pelo usuário.
 func (a *App) SetTemperature(sensorID string, value float64) {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return
+	}
+
+	clamped := math.Max(minTempScale, math.Min(maxTempScale, value))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	switch sensorID {
 	case "s1":
-		a.sensor1 = value
+		a.sensor1 = clamped
 	case "s2":
-		a.sensor2 = value
+		a.sensor2 = clamped
 	}
 }
 
-// GetTemperatures retorna os valores atuais de temperatura dos dois sensores.
+// GetTemperatures retorna os valores atuais de temperatura dos sensores.
 func (a *App) GetTemperatures() map[string]float64 {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -98,9 +120,13 @@ func (a *App) GetTemperatures() map[string]float64 {
 	}
 }
 
-// publicarLeitura envia a leitura para o broker MQTT se estiver conectado.
+// publicarLeitura serializa e publica a leitura de um sensor no broker MQTT.
 func (a *App) publicarLeitura(sensorID string, temp float64, now int64) {
-	if a.mqttClient == nil || !a.mqttClient.IsConnected() {
+	a.mu.RLock()
+	client := a.mqttClient
+	a.mu.RUnlock()
+
+	if client == nil || !client.IsConnected() {
 		return
 	}
 
@@ -112,14 +138,15 @@ func (a *App) publicarLeitura(sensorID string, temp float64, now int64) {
 
 	data, err := json.Marshal(payload)
 	if err != nil {
+		log.Printf("[SENSOR] Erro ao serializar leitura do %s: %v", sensorID, err)
 		return
 	}
 
 	topic := protocol.TopicSensorPrefix + sensorID
-	a.mqttClient.Publish(topic, 0, false, data)
+	client.Publish(topic, 0, false, data)
 }
 
-// iniciarCiclo inicia o ticker com intervalo de tres segundos.
+// iniciarCiclo executa o loop periódico de 3 segundos para envio MQTT e atualização do gráfico. Pra estar em conformidade com os 60 segundos requeridos basta mudar o valor do ticker.
 func (a *App) iniciarCiclo() {
 	a.ticker = time.NewTicker(3 * time.Second)
 
@@ -136,11 +163,9 @@ func (a *App) iniciarCiclo() {
 
 				now := time.Now().Unix()
 
-				// Publica telemetria no MQTT para cada sensor
 				a.publicarLeitura("sensor_1", t1, now)
 				a.publicarLeitura("sensor_2", t2, now)
 
-				// Emite o evento de ciclo para o frontend com as leituras atuais
 				runtime.EventsEmit(a.ctx, "cycle_tick", map[string]interface{}{
 					"s1":        t1,
 					"s2":        t2,

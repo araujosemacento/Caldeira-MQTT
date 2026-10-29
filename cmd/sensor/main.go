@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"log"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -16,8 +17,8 @@ func main() {
 
 	err := wails.Run(&options.App{
 		Title:  "Simulador de Sensores: Caldeira",
-		Width:  740,
-		Height: 520,
+		Width:  600,
+		Height: 400,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -29,7 +30,6 @@ func main() {
 	})
 
 	if err != nil {
-		println("Erro:", err.Error())
+		log.Fatalf("Erro ao iniciar a aplicação: %v", err)
 	}
 }
-
