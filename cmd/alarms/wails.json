@@ -1,0 +1,12 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "caldeira-alarms",
+  "outputfilename": "caldeira-alarms",
+  "frontend:dir": "frontend",
+  "build:tags": "webkit2_41",
+  "author": {
+    "name": "Melo",
+    "email": "araujosemacento@alu.ufc.br"
+  }
+}
+

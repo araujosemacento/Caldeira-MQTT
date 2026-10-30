@@ -21,6 +21,7 @@ go.work
 # Wails and build output
 build/
 cmd/sensor/build/
+cmd/alarms/build/
 dist/
 
 # Temporary and local IDE files
